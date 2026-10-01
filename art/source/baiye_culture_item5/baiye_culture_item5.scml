@@ -1,0 +1,33 @@
+<?xml version='1.0' encoding='utf-8'?>
+<spriter_data scml_version="1.0" generator="BaiyeEcologyCulture" generator_version="1.0">
+  <folder id="0">
+    <file id="0" name="object_0.png" width="128" height="94" pivot_x="0.5" pivot_y="0.5" />
+    <file id="1" name="ui_0.png" width="128" height="128" pivot_x="0.5" pivot_y="0.5" />
+  </folder>
+  <entity id="0" name="baiye_culture_item5">
+    <animation id="0" name="object" length="100" interval="100" looping="true">
+      <mainline>
+        <key id="0" time="0">
+          <object_ref id="0" timeline="0" key="0" z_index="0" />
+        </key>
+      </mainline>
+      <timeline id="0" name="object_0">
+        <key id="0" time="0">
+          <object folder="0" file="0" x="0" y="0" scale_x="0.5" scale_y="0.5" />
+        </key>
+      </timeline>
+    </animation>
+    <animation id="1" name="ui" length="100" interval="100" looping="true">
+      <mainline>
+        <key id="0" time="0">
+          <object_ref id="0" timeline="0" key="0" z_index="0" />
+        </key>
+      </mainline>
+      <timeline id="0" name="ui_0">
+        <key id="0" time="0">
+          <object folder="0" file="1" x="0" y="0" />
+        </key>
+      </timeline>
+    </animation>
+  </entity>
+</spriter_data>

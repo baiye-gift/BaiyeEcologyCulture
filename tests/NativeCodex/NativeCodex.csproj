@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><LangVersion>latest</LangVersion>
+    <GameManaged>D:\Steam\steamapps\common\OxygenNotIncluded\OxygenNotIncluded_Data\Managed</GameManaged>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="BaiyeEcologyCulture"><HintPath>../../bin/Release/netstandard2.1/BaiyeEcologyCulture.dll</HintPath></Reference>
+    <Reference Include="Assembly-CSharp"><HintPath>$(GameManaged)/Assembly-CSharp.dll</HintPath></Reference>
+    <Reference Include="Assembly-CSharp-firstpass"><HintPath>$(GameManaged)/Assembly-CSharp-firstpass.dll</HintPath></Reference>
+    <Reference Include="UnityEngine.CoreModule"><HintPath>$(GameManaged)/UnityEngine.CoreModule.dll</HintPath></Reference>
+  </ItemGroup>
+</Project>
