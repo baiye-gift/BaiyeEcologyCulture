@@ -1,10 +1,10 @@
-# 白夜生态培养仓 0.1.5
+# 白夜生态培养仓 0.1.6
 
 独立《缺氧：眼冒金星》模组，基于 U59-744825 API。不依赖白夜聚变模组，不增加世界生成要求。
 
 ## 下载与安装
 
-当前开发安装包为 `dist/BaiyeEcologyCulture-0.1.5.zip`，无需自行编译。已公开版本从 [GitHub Releases](https://github.com/baiye-gift/BaiyeEcologyCulture/releases) 下载；0.1.5 尚未公开发布。0.1.3 有配置侧栏布局问题，0.1.4 的布局诊断会在隐藏面板上启动协程而报错，请升级。
+当前开发安装包为 `dist/BaiyeEcologyCulture-0.1.6.zip`，无需自行编译。已公开版本从 [GitHub Releases](https://github.com/baiye-gift/BaiyeEcologyCulture/releases) 下载；0.1.6 尚未公开发布。0.1.6 修复藻泥粥制作完成时的 0 K 崩溃，并新增双藻糊、盐藻麦饼与双藻菌菇煲。0.1.3 有配置侧栏布局问题，0.1.4 的布局诊断会在隐藏面板上启动协程而报错，请升级。
 
 1. 保存并完全退出游戏，升级前备份存档与旧模组。
 2. 解压后将整个 `BaiyeEcologyCulture` 文件夹放入系统“文档”目录的 `Klei/OxygenNotIncluded/mods/local/`；不要嵌套额外目录，也不要将备份留在该扫描目录。
@@ -59,7 +59,7 @@
 
 ## 数据库指南与运行动画
 
-建筑数据库的原生条目新增连接启动、两条培养路径、三策略、藻类食品、换种样本、状态排查六组指南；7 种食物、15 种样本、3 种活体及残渣各有用途说明。数据库扩展保留原生和其他模组的条目内容与 ID，重复调用不会重复登记。
+建筑数据库的原生条目新增连接启动、两条培养路径、三策略、藻类食品、换种样本、状态排查六组指南；10 种食物、15 种样本、3 种活体及残渣各有用途说明。数据库扩展保留原生和其他模组的条目内容与 ID，重复调用不会重复登记。
 
 新外壳窗口为清澈均匀培养液，三藻类分别柔绿、蓝绿、淡橄榄色；健康异常显示警示灯。旋转搅拌轴叶片、机械泵与循环液流持续运行，区分启动、接种、培养、缓速保种、实际自动采收、过滤清洗和停机。采收动作只跟随已提交的真实自动采收；预检和人工采样不会触发。中央浓度及水/产物计量仍跟随真实库存。
 
@@ -104,8 +104,13 @@
 | 盐藻脆片 | 1 kg 盐生藻叶 | 1 kg / 2000 kcal | 1，电动烤炉 |
 | 菌菇藻卷 | 1 kg 煎蘑菇 + 0.5 kg 盐生藻叶 + 0.25 kg 螺旋藻泥 | 1.75 kg / 4800 kcal | 3，燃气灶 |
 | 藻酱豆腐 | 1 kg 豆腐 + 0.5 kg 螺旋藻泥 + 0.25 kg 盐生藻叶 | 1.75 kg / 6100 kcal | 4，燃气灶 |
+| 双藻糊 | 0.5 kg 螺旋藻泥 + 0.5 kg 盐生藻叶 + 0.5 kg 水 | 1.5 kg / 3000 kcal | 0，食物压制器 |
+| 盐藻麦饼 | 1 kg 盐生藻叶 + 0.25 kg 冰霜麦粒 | 1.25 kg / 2100 kcal | 2，电动烤炉 |
+| 双藻菌菇煲 | 1 kg 煎蘑菇 + 0.5 kg 螺旋藻泥 + 0.5 kg 盐生藻叶 | 2 kg / 5800 kcal | 3，燃气灶 |
 
-螺旋藻泥 4000 kcal/kg、品质 -1；盐生藻叶 2000 kcal/kg、品质 0；原料基础腐败时间 2 周期，熟食 6 周期。水不提供热量；藻麦饼的谷物烹熟贡献按 400 kcal/kg 的游戏配方折算。新配方不覆盖原版 ID，全部产品质量等于投入质量。
+螺旋藻泥 4000 kcal/kg、品质 -1；盐生藻叶 2000 kcal/kg、品质 0；原料基础腐败时间 2 周期，加工食物 6 周期。水不提供热量；两种麦饼按 400 kcal/kg 的模组玩法预算折算麦粒贡献，原版麦粒本身不可直接食用。煎蘑菇 2800 kcal/kg、豆腐 3600 kcal/kg 来自原版食品数据。新配方不覆盖原版 ID，全部产品质量等于投入质量，每批基础加工时间 40 秒。
+
+食物压制器的藻泥粥与双藻糊沿用原版原料质量加权平均温度，不读取未配置的加热温度；烤炉及燃气灶使用原版 95°C 出品温度。新三菜分别复用已有原创藻泥粥、藻麦饼、菌菇藻卷图像，名称与物品 ID 独立；没有新增美术。活体、样本、基础绿藻与菌泥仍不可直接按这些食谱加工成食物。
 
 ## 构建与验证
 
@@ -121,7 +126,7 @@ $modDirectory = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'Klei/Ox
 
 - `dotnet run --project tests/Regression/Regression.csproj -c Release`：50 项实际生产/活动/批次回归，包括十周期堵仓、实际付款与恢复、特殊株接种退出、真实高营养样本取得与一次接种。
 - `dotnet build EcologyCulture.csproj -c Release`：游戏 U59 原生 API 编译。
-- `dotnet run --project tests/NativeContract/NativeContract.csproj -c Release -- <游戏 Managed 目录>`：8 项原生托管检查：KSerialization 状态/历史原因往返、保存接口、15 种样本 ID、原生侧栏类型、配置注册保留原有条目/单实例/幂等、可识别分类、库存顺序和厨房配方。
+- `dotnet run --project tests/NativeContract/NativeContract.csproj -c Release -- <游戏 Managed 目录>`：10 项原生托管检查：KSerialization 状态/历史原因往返、保存接口、15 种样本 ID、原生侧栏类型、配置注册保留原有条目/单实例/幂等、可识别分类、库存顺序、八配方准确原料/质量/热量/品质/厨房/时间与温度模式、旧食品 ID 与十食品动画映射。
 - `python tools/build-anims.py --kanimal <kanimal-cli.exe>`：透明源图与原生动态层编译。
 - `python tools/verify-assets.py`：10 套资源引用、实际原生阶段名、机械/液流运动、均匀浓度、128 px 图标、2048 px 图集上限及各阶段源预览。
 - `dotnet run --project tests/NativeCodex -c Release -- <游戏 Managed 目录>`：4 项独立原生 Codex 托管检查；先编译本项目，无需核子工艺。测试不实例化 Unity 数据库界面。

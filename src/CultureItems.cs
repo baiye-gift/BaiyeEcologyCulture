@@ -6,11 +6,14 @@ namespace Baiye.EcologyCulture
     public static class CultureIds
     {
         public const string Building = "BaiyeCultureChamber", Residue = "BaiyeCultureResidue";
-        public static readonly string[] Food = { "BaiyeSpirulinaPaste", "BaiyeSalineLeaves", "BaiyeAlgaePorridge", "BaiyeAlgaeCake", "BaiyeSeaweedChips", "BaiyeAlgaeWrap", "BaiyeAlgaeTofu" };
-        public static readonly string[] FoodZh = { "螺旋藻泥", "盐生藻叶", "藻泥粥", "藻麦饼", "盐藻脆片", "菌菇藻卷", "藻酱豆腐" };
-        public static readonly string[] FoodEn = { "Spirulina Paste", "Saline Algae Leaves", "Algae Porridge", "Algae Wheat Cakes", "Seaweed Chips", "Mushroom Algae Wrap", "Algae Tofu" };
-        public static readonly float[] Calories = { 4000, 2000, 4000f/1.5f, 4100f/1.25f, 2000, 4800f/1.75f, 6100f/1.75f };
-        public static readonly int[] Quality = { -1, 0, 0, 1, 1, 3, 4 };
+        public static readonly string[] Food = { "BaiyeSpirulinaPaste", "BaiyeSalineLeaves", "BaiyeAlgaePorridge", "BaiyeAlgaeCake", "BaiyeSeaweedChips", "BaiyeAlgaeWrap", "BaiyeAlgaeTofu", "BaiyeMixedAlgaeMash", "BaiyeSalineAlgaeCake", "BaiyeMixedAlgaeStew" };
+        public static readonly string[] FoodZh = { "螺旋藻泥", "盐生藻叶", "藻泥粥", "藻麦饼", "盐藻脆片", "菌菇藻卷", "藻酱豆腐", "双藻糊", "盐藻麦饼", "双藻菌菇煲" };
+        public static readonly string[] FoodEn = { "Spirulina Paste", "Saline Algae Leaves", "Algae Porridge", "Algae Wheat Cakes", "Seaweed Chips", "Mushroom Algae Wrap", "Algae Tofu", "Mixed Algae Mash", "Saline Algae Wheat Cakes", "Mixed Algae Mushroom Stew" };
+        public static readonly float[] Calories = { 4000, 2000, 4000f/1.5f, 4100f/1.25f, 2000, 4800f/1.75f, 6100f/1.75f, 3000f/1.5f, 2100f/1.25f, 5800f/2f };
+        public static readonly int[] Quality = { -1, 0, 0, 1, 1, 3, 4, 0, 2, 3 };
+        // Food indices 7+ must never select the existing sample (7) or residue
+        // (8) art. New foods deliberately reuse our existing food animations.
+        public static readonly string[] FoodAnimations = { "baiye_culture_item0_kanim", "baiye_culture_item1_kanim", "baiye_culture_item2_kanim", "baiye_culture_item3_kanim", "baiye_culture_item4_kanim", "baiye_culture_item5_kanim", "baiye_culture_item6_kanim", "baiye_culture_item2_kanim", "baiye_culture_item3_kanim", "baiye_culture_item5_kanim" };
         public static string Live(CultureSpecies s) => "BaiyeLiveCulture" + s;
         public static string Sample(CultureSpecies s,CultureTrait t) => "BaiyeCultureSample" + s + t;
         public static string Product(CultureSpecies s) => s == CultureSpecies.Green ? "Algae" : Food[s == CultureSpecies.Spirulina ? 0 : 1];
@@ -38,7 +41,10 @@ namespace Baiye.EcologyCulture
             "电动烤炉把 1 kg 螺旋藻泥与 0.25 kg 冰霜小麦制成 1.25 kg 藻麦饼，整批 4100 千卡；冷藏保存。",
             "电动烤炉把 1 kg 盐生藻叶烤成 1 kg 盐藻脆片，整批 2000 千卡，品质高于生藻叶；仍需冷藏。",
             "燃气灶将 1 kg 煎蘑菇、0.5 kg 盐生藻叶与 0.25 kg 螺旋藻泥制成 1.75 kg 菌菇藻卷，整批 4800 千卡；冷藏保存。",
-            "燃气灶将 1 kg 豆腐、0.5 kg 螺旋藻泥与 0.25 kg 盐生藻叶制成 1.75 kg 藻酱豆腐，整批 6100 千卡；冷藏保存。"
+            "燃气灶将 1 kg 豆腐、0.5 kg 螺旋藻泥与 0.25 kg 盐生藻叶制成 1.75 kg 藻酱豆腐，整批 6100 千卡；冷藏保存。",
+            "食物压制器把 0.5 kg 螺旋藻泥、0.5 kg 盐生藻叶与 0.5 kg 水混成 1.5 kg 双藻糊，整批 3000 千卡、品质 0。沿用原料平均温度，冷藏保存。",
+            "电动烤炉把 1 kg 盐生藻叶与 0.25 kg 冰霜小麦制成 1.25 kg 盐藻麦饼，整批 2100 千卡、品质 2。小麦热量为模组玩法预算，冷藏保存。",
+            "燃气灶把 1 kg 煎蘑菇、0.5 kg 螺旋藻泥与 0.5 kg 盐生藻叶制成 2 kg 双藻菌菇煲，整批 5800 千卡、品质 3；冷藏保存。"
         }[n],new[]{
             "Edible spirulina harvest. Eat directly or use in porridge, wheat cakes, wraps and tofu. Remove promptly and refrigerate.",
             "Edible saline-algae harvest. Eat directly, grill into chips or use in wraps and tofu. Salt and inedible residue are separate products.",
@@ -46,7 +52,10 @@ namespace Baiye.EcologyCulture
             "Grill recipe: 1 kg spirulina paste + 0.25 kg sleet wheat yields 1.25 kg cakes, 4100 kcal per batch. Refrigerate.",
             "Grill recipe: 1 kg saline leaves yields 1 kg chips, 2000 kcal per batch with improved quality. Refrigerate.",
             "Gas range: 1 kg fried mushroom + 0.5 kg saline leaves + 0.25 kg spirulina paste yields 1.75 kg wraps, 4800 kcal per batch. Refrigerate.",
-            "Gas range: 1 kg tofu + 0.5 kg spirulina paste + 0.25 kg saline leaves yields 1.75 kg algae tofu, 6100 kcal per batch. Refrigerate."
+            "Gas range: 1 kg tofu + 0.5 kg spirulina paste + 0.25 kg saline leaves yields 1.75 kg algae tofu, 6100 kcal per batch. Refrigerate.",
+            "Musher: 0.5 kg paste + 0.5 kg leaves + 0.5 kg water yields 1.5 kg mixed mash, 3000 kcal, quality 0. Inherits average ingredient temperature. Refrigerate.",
+            "Grill: 1 kg leaves + 0.25 kg sleet wheat yields 1.25 kg saline cakes, 2100 kcal, quality 2. Wheat calories are a mod gameplay budget. Refrigerate.",
+            "Gas range: 1 kg fried mushroom + 0.5 kg paste + 0.5 kg leaves yields 2 kg mixed stew, 5800 kcal, quality 3. Refrigerate."
         }[n]);
     }
 
@@ -62,7 +71,7 @@ namespace Baiye.EcologyCulture
                 string id=CultureIds.Food[n],name=CultureIds.Text(CultureIds.FoodZh[n],CultureIds.FoodEn[n]);
                 Strings.Add("STRINGS.ITEMS.FOOD."+id.ToUpperInvariant()+".NAME",name);
                 Strings.Add("STRINGS.ITEMS.FOOD."+id.ToUpperInvariant()+".DESC",CultureIds.FoodDescription(n));
-                var go=Loose(id,name,"baiye_culture_item"+n+"_kanim",SimHashes.Creature,CultureIds.FoodDescription(n));
+                var go=Loose(id,name,CultureIds.FoodAnimations[n],SimHashes.Creature,CultureIds.FoodDescription(n));
                 result.Add(EntityTemplates.ExtendEntityToFood(go,new EdiblesManager.FoodInfo(id,CultureIds.Calories[n]*1000,CultureIds.Quality[n],255.15f,277.15f,n<2?1200:3600,true)));
             }
             var residue=Loose(CultureIds.Residue,CultureIds.Text("培养残渣","Spent Culture Residue"),"baiye_culture_item8_kanim",SimHashes.Dirt,CultureIds.Text("来自采收的不可食部分、失活培养物或培养基剩余组分。不可食用或用来接种；可由复制人或清扫器取走并送入堆肥。","Inedible harvest, dead culture or spent medium. Not food or inoculum. Remove by duplicant or sweeper and compost."));

@@ -1,5 +1,16 @@
 # 版本记录
 
+## 0.1.6 — 2026-10-04
+
+- `src/CultureMod.cs`：修复藻泥粥完成制作时的 0 K 崩溃。实际 Player.log 在本地 00:08:22 记录 `BaiyeAlgaePorridge` 温度为零，调用栈为 `ComplexFabricator.SpawnOrderProduct → MicrobeMusher.SpawnOrderProduct`。原生压制器没有加热温度，改用原生质量加权平均原料温度；烤炉及燃气灶保留原生 95°C 加热模式。不修改全局温度、侧栏或其他模组补丁。
+- `src/CultureMod.cs`、`src/CultureItems.cs`：新增独立物品双藻糊（泥 0.5 kg、叶 0.5 kg、水 0.5 kg → 1.5 kg，3000 kcal，品质 0）、盐藻麦饼（叶 1 kg、麦粒 0.25 kg → 1.25 kg，2100 kcal，品质 2）、双藻菌菇煲（煎蘑菇 1 kg、泥 0.5 kg、叶 0.5 kg → 2 kg，5800 kcal，品质 3）。对应压制器、烤炉、燃气灶，基础制作时间均为 40 秒。双藻糊沿用原料平均温度，其余两菜加热；全部八种配方质量守恒，麦粒热量沿用模组玩法预算。原版煎蘑菇/豆腐热量经本机原生程序集核对为 2800/3600 kcal/kg。
+- `src/CultureItems.cs`：食品数组只在旧 0–6 项之后追加，原 ID 不变；新增中英名称、热量/品质及用途描述。食品动画使用显式映射，三菜复用现有原创藻泥粥/藻麦饼/菌菇藻卷动画；样本和残渣的第 7/8 号动画不会被误用于食品，没有新美术文件。
+- `src/CultureCodex.cs`、`README.md`、`mod_info.yaml`：更新中英厨房指南、八配方表、温度规则、动画复用说明和版本 0.1.6。README 区分原生食品热量与麦粒玩法预算，不将不可食麦粒宣称为原生食品热量。
+- `tests/NativeContract/Program.cs`：新增实际生产配方温度合同检查，首先对旧 0.1.5 DLL 失败并明确显示藻泥粥错误使用 Heated；修复后通过。覆盖八配方温度、原料 ID/数量、出品质量/热量/品质、40 秒时间、厨房分派、重复注册、十食品元数据、旧食品 ID 与有效食品动画资源。离线测试不实例化 Unity 出品实体。
+- 检查：Release 构建 0 错误、2 个既有程序集引用警告；50 项模型、10 项原生托管契约、4 项原生数据库，共 64 项通过；git diff --check 通过。新增测试首次把原生 HashSet 当列表调用 Find 导致编译失败，改为 FirstOrDefault 后通过；尝试在离线进程初始化原生 FOOD_TYPES 触发 DLC 原生 ECall 限制，撤销该运行断言，使用程序集核对并保留准确的配方预算测试。
+- 安装：检查游戏进程已退出，备份 0.1.5 到 `dist/install-backups/BaiyeEcologyCulture-20261004-003730`（游戏扫描目录外），安装 0.1.6；包含 35 个文件、30 个既有动画文件与一个自有 DLL，逐文件 SHA-256 校验。`mods.json` 的 EXPANSION1_ID 启用项与 crash_count=0 原样保留，没有修改启用设置。文档补记后重打 ZIP，并同步安装目录中的最终变更记录与说明后重新校验全部文件。
+- 未验证：Unity 实际制作八配方、温度/库存/UI 显示、新物品搬运及存档往返、多模组与长期运行仍待重启实机检查；未启动游戏、修改存档或模组启用设置。
+
 ## 0.1.5 — 2026-10-02（本地开发版）
 
 - `src/CultureSettingsSideScreen.cs`：删除 `CultureLayoutTrace` 及其全局 `DetailsScreen.Refresh` 补丁。实机 22:56:55 日志明确记录该补丁在尚未显示的 `DetailsScreen` 上启动协程，产生 `Coroutine couldn't be started ... DetailsScreen is inactive`。诊断本身会引发游戏错误，0.1.4 的“只读诊断”说明不准确。

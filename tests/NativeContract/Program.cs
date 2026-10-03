@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using KSerialization;
@@ -86,7 +87,7 @@ static class Program
             ComplexRecipeManager.DestroyInstance();
             var register=typeof(CultureMod).Assembly.GetType("Baiye.EcologyCulture.CultureRecipes").GetMethod("Register",BindingFlags.NonPublic|BindingFlags.Static);
             register.Invoke(null,null);register.Invoke(null,null);
-            var recipes=ComplexRecipeManager.Get().preProcessRecipes;Check(recipes.Count==5,"recipes missing or duplicated");
+            var recipes=ComplexRecipeManager.Get().preProcessRecipes;Check(recipes.Count==8,"recipes missing or duplicated");
             var kitchens=new System.Collections.Generic.Dictionary<string,int>();
             foreach(var recipe in recipes)
             {
@@ -94,7 +95,52 @@ static class Program
                 Check(Math.Abs(inputs-outputs)<1e-6,"kitchen deleted or created batch mass");
                 string kitchen=recipe.fabricators[0].Name;kitchens[kitchen]=kitchens.ContainsKey(kitchen)?kitchens[kitchen]+1:1;
             }
-            Check(kitchens["MicrobeMusher"]==1&&kitchens["CookingStation"]==2&&kitchens["GourmetCookingStation"]==2,"wrong kitchen dispatch");
+            Check(kitchens["MicrobeMusher"]==2&&kitchens["CookingStation"]==3&&kitchens["GourmetCookingStation"]==3,"wrong kitchen dispatch");
+        });
+        Test("all algae recipes use the native temperature contract of their kitchen",()=>
+        {
+            ComplexRecipeManager.DestroyInstance();
+            var register=typeof(CultureMod).Assembly.GetType("Baiye.EcologyCulture.CultureRecipes").GetMethod("Register",BindingFlags.NonPublic|BindingFlags.Static);
+            register.Invoke(null,null);
+            var recipes=ComplexRecipeManager.Get().preProcessRecipes;
+            int musher=0,heated=0;
+            foreach(var recipe in recipes)
+            {
+                string kitchen=recipe.fabricators[0].Name;
+                foreach(var result in recipe.results)
+                {
+                    var expected=kitchen=="MicrobeMusher"?ComplexRecipe.RecipeElement.TemperatureOperation.AverageTemperature:ComplexRecipe.RecipeElement.TemperatureOperation.Heated;
+                    Check(result.temperatureOperation==expected,"unsafe temperature operation for "+result.material.Name+" in "+kitchen+": "+result.temperatureOperation);
+                    if(kitchen=="MicrobeMusher"){Check(result.material.Name=="BaiyeAlgaePorridge"||result.material.Name=="BaiyeMixedAlgaeMash","unexpected musher product");musher++;}else heated++;
+                }
+            }
+            Check(musher==2&&heated==6,"not all eight algae products were checked");
+        });
+        Test("new algae foods preserve identities artwork and approved recipe budgets",()=>
+        {
+            var ids=new System.Collections.Generic.HashSet<string>();
+            string[] old={"BaiyeSpirulinaPaste","BaiyeSalineLeaves","BaiyeAlgaePorridge","BaiyeAlgaeCake","BaiyeSeaweedChips","BaiyeAlgaeWrap","BaiyeAlgaeTofu"};
+            Check(CultureIds.Food.Length==10&&CultureIds.FoodZh.Length==10&&CultureIds.FoodEn.Length==10&&CultureIds.Calories.Length==10&&CultureIds.Quality.Length==10&&CultureIds.FoodAnimations.Length==10,"food metadata arrays differ");
+            for(int n=0;n<CultureIds.Food.Length;n++)
+            {
+                Check(ids.Add(CultureIds.Food[n]),"duplicate food identity");
+                Check(n>=7||CultureIds.Food[n]==old[n],"existing food identity changed");
+                Check(CultureIds.FoodAnimations[n]!="baiye_culture_item7_kanim"&&CultureIds.FoodAnimations[n]!="baiye_culture_item8_kanim","food selected sample/residue art");
+                string art=CultureIds.FoodAnimations[n].Replace("_kanim","");
+                Check(File.Exists(Path.Combine(AppContext.BaseDirectory,"../../../../../anim/assets",art,art+"_anim.bytes")),"food animation missing: "+CultureIds.FoodAnimations[n]);
+                Check(CultureIds.FoodDescription(n).Length>20,"food guide missing");
+            }
+            string[] products={"BaiyeAlgaePorridge","BaiyeAlgaeCake","BaiyeSeaweedChips","BaiyeAlgaeWrap","BaiyeAlgaeTofu","BaiyeMixedAlgaeMash","BaiyeSalineAlgaeCake","BaiyeMixedAlgaeStew"};
+            string[][] inputs={new[]{"BaiyeSpirulinaPaste","Water"},new[]{"BaiyeSpirulinaPaste","ColdWheatSeed"},new[]{"BaiyeSalineLeaves"},new[]{"FriedMushroom","BaiyeSalineLeaves","BaiyeSpirulinaPaste"},new[]{"Tofu","BaiyeSpirulinaPaste","BaiyeSalineLeaves"},new[]{"BaiyeSpirulinaPaste","BaiyeSalineLeaves","Water"},new[]{"BaiyeSalineLeaves","ColdWheatSeed"},new[]{"FriedMushroom","BaiyeSpirulinaPaste","BaiyeSalineLeaves"}};
+            float[][] amounts={new[]{1f,.5f},new[]{1f,.25f},new[]{1f},new[]{1f,.5f,.25f},new[]{1f,.5f,.25f},new[]{.5f,.5f,.5f},new[]{1f,.25f},new[]{1f,.5f,.5f}};
+            float[] masses={1.5f,1.25f,1f,1.75f,1.75f,1.5f,1.25f,2f},calories={4000f,4100f,2000f,4800f,6100f,3000f,2100f,5800f};int[] quality={0,1,1,3,4,0,2,3};
+            for(int n=0;n<products.Length;n++)
+            {
+                var recipe=ComplexRecipeManager.Get().preProcessRecipes.FirstOrDefault(r=>r.results[0].material.Name==products[n]);
+                Check(recipe!=null&&recipe.time==40&&recipe.ingredients.Length==inputs[n].Length&&recipe.results.Length==1,"approved recipe missing or changed");
+                for(int i=0;i<inputs[n].Length;i++)Check(recipe.ingredients[i].material.Name==inputs[n][i]&&recipe.ingredients[i].amount==amounts[n][i],"approved ingredient changed");
+                Check(recipe.results[0].amount==masses[n]&&Math.Abs(CultureIds.Calories[n+2]*masses[n]-calories[n])<.01&&CultureIds.Quality[n+2]==quality[n],"approved mass calorie or quality budget changed");
+            }
         });
         Console.WriteLine(passed+" native managed contract scenarios passed");
     }

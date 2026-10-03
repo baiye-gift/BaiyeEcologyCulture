@@ -37,12 +37,18 @@ namespace Baiye.EcologyCulture
             Add("CookingStation",4,new[]{CultureIds.Food[1]},new[]{1f},1f);
             Add("GourmetCookingStation",5,new[]{"FriedMushroom",CultureIds.Food[1],CultureIds.Food[0]},new[]{1f,.5f,.25f},1.75f);
             Add("GourmetCookingStation",6,new[]{"Tofu",CultureIds.Food[0],CultureIds.Food[1]},new[]{1f,.5f,.25f},1.75f);
+            Add("MicrobeMusher",7,new[]{CultureIds.Food[0],CultureIds.Food[1],"Water"},new[]{.5f,.5f,.5f},1.5f);
+            Add("CookingStation",8,new[]{CultureIds.Food[1],"ColdWheatSeed"},new[]{1f,.25f},1.25f);
+            Add("GourmetCookingStation",9,new[]{"FriedMushroom",CultureIds.Food[0],CultureIds.Food[1]},new[]{1f,.5f,.5f},2f);
         }
         private static void Add(string kitchen,int food,string[] names,float[] masses,float output)
         {
             var inputs=new ComplexRecipe.RecipeElement[names.Length];
             for(int n=0;n<inputs.Length;n++)inputs[n]=new ComplexRecipe.RecipeElement(new Tag(names[n]),masses[n]);
-            var results=new[]{new ComplexRecipe.RecipeElement(new Tag(CultureIds.Food[food]),output,ComplexRecipe.RecipeElement.TemperatureOperation.Heated)};
+            // The musher has no heatedTemperature; native musher foods inherit
+            // ingredient temperature instead of the zero-valued heater field.
+            var temperature=kitchen=="MicrobeMusher"?ComplexRecipe.RecipeElement.TemperatureOperation.AverageTemperature:ComplexRecipe.RecipeElement.TemperatureOperation.Heated;
+            var results=new[]{new ComplexRecipe.RecipeElement(new Tag(CultureIds.Food[food]),output,temperature)};
             string id=ComplexRecipeManager.MakeRecipeID(kitchen,inputs,results);
             if(ComplexRecipeManager.Get().GetRecipe(id)!=null)return;
             new ComplexRecipe(id,inputs,results){time=40,nameDisplay=ComplexRecipe.RecipeNameDisplay.Result,description=CultureIds.Text("将培养仓的藻类烹制成食物。","Cook cultivated algae."),fabricators=new List<Tag>{new Tag(kitchen)}};
