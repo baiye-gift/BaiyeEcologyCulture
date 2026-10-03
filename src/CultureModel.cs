@@ -19,6 +19,7 @@ namespace Baiye.EcologyCulture
         public CultureStage Stage;
         public bool Switching, KeepSample;
         public bool RecoveryEdible = true;
+        public CultureBlock LastStress;
         public double Health = 1, LiveKg, Seconds, HeatExposure, DimExposure, FastExposure, NutritionExposure;
         public CultureState Copy() => (CultureState)MemberwiseClone();
     }
@@ -39,7 +40,7 @@ namespace Baiye.EcologyCulture
         public double ReclaimWater, ReclaimSaltWater, ReturnedWater, PhotoGain;
         public CultureSpecies ProductSpecies, SampleSpecies;
         public CultureTrait SampleTrait;
-        public bool Worked;
+        public bool Worked, Maintaining;
         public double Watts;
         public double Inputs => Water + SaltWater + CO2 + Fertilizer + Organic + LiveTaken + SampleTaken + ReclaimWater + ReclaimSaltWater;
         public double Outputs => Oxygen + LiveAdded + Product + Salt + Residue + SampleMade + DrainWater + DrainSaltWater + ReturnedWater;
@@ -69,9 +70,28 @@ namespace Baiye.EcologyCulture
         // advance timers or manufacture a second copy of a product.
         public static CultureDelta Step(CultureState state, CultureInput input, double seconds, bool funded)
         {
+            var d=StepCore(state,input,seconds,funded);
+            if(funded&&seconds>0&&!double.IsNaN(seconds)&&!double.IsInfinity(seconds)&&d.Block==CultureBlock.ProductFull&&state.Stage==CultureStage.Grow&&state.Health>.1)
+            {
+                var condition=MaintenanceCondition(state,input);
+                d=new CultureDelta{Next=state.Copy(),Block=condition==CultureBlock.None?CultureBlock.ProductFull:condition,Watts=120,Worked=condition==CultureBlock.None,Maintaining=condition==CultureBlock.None};
+            }
+            if(d.Worked&&input.MaxWatts+1e-6<d.Watts)
+                return new CultureDelta{Next=state.Copy(),Block=CultureBlock.Power,Watts=d.Watts};
+            return d;
+        }
+        public static CultureBlock MaintenanceCondition(CultureState state,CultureInput input)
+        {
+            if(state.Health<=.1)return CultureBlock.Dead;
+            if(input.TemperatureC<MinTemperature(state.Species)||input.TemperatureC>MaxTemperature(state.Species,state.Trait))return CultureBlock.Temperature;
+            if(input.Water+input.SaltWater*.93<=.001)return CultureBlock.Water;
+            if(input.Organic<=.001)return CultureBlock.Nutrient;
+            return CultureBlock.None;
+        }
+        private static CultureDelta StepCore(CultureState state, CultureInput input, double seconds, bool funded)
+        {
             var d = new CultureDelta { Next = state.Copy(), ProductSpecies = state.Species, SampleSpecies = state.Species, SampleTrait = state.Trait, Watts = OperatingWatts(state) };
             if (!funded || seconds <= 0 || double.IsNaN(seconds) || double.IsInfinity(seconds)) { d.Block = CultureBlock.Power; return d; }
-            if (input.MaxWatts + 1e-6 < d.Watts) { d.Block = CultureBlock.Power; return d; }
             // Recover old-version liquids into the input vessel, in paid bounded
             // batches. A full vessel defers recovery without deleting old stock
             // or preventing the current culture from using the input water.
@@ -125,7 +145,7 @@ namespace Baiye.EcologyCulture
                 if (d.Next.Seconds >= 30-1e-7)
                 {
                     d.Next.Species = state.TargetSpecies; d.Next.Trait = state.TargetTrait;
-                    d.Next.Stage = CultureStage.Inoculate; d.Next.Seconds = 0; d.Next.Health = 1;
+                    d.Next.Stage = CultureStage.Inoculate; d.Next.Seconds = 0; d.Next.Health = 1;d.Next.LastStress=CultureBlock.None;
                     d.Next.HeatExposure = d.Next.DimExposure = d.Next.FastExposure = d.Next.NutritionExposure = 0;
                 }
                 return d;
@@ -149,7 +169,11 @@ namespace Baiye.EcologyCulture
                 d.Next.LiveKg -= d.LiveTaken; d.Worked = true; return d;
             }
             if (state.Stage == CultureStage.Grow && state.Policy == CulturePolicy.Preserve && state.LiveKg >= 16)
-            { d.Worked = true; return d; } // Paid maintenance; no free net oxygen.
+            {
+                var condition=MaintenanceCondition(state,input);
+                if(condition!=CultureBlock.None)return Block(d,condition);
+                d.Worked = true; return d;
+            } // Paid maintenance; no free net oxygen.
             if (state.LiveKg >= Capacity-1e-7 || input.ProductRoom <= 1e-7) return Block(d,CultureBlock.ProductFull);
             double gain;
             if (state.Stage == CultureStage.Inoculate)
@@ -221,13 +245,24 @@ namespace Baiye.EcologyCulture
             next.Stage=keep?CultureStage.SaveSample:CultureStage.Recover;next.Seconds=0;return next;
         }
 
+        // Explicit recovery may leave an unfinished switch. Existing biomass
+        // keeps its genotype until paid recovery and cleaning have completed.
+        public static CultureState RequestBaseRestart(CultureState state)
+        {
+            var next=state.Copy();
+            next.TargetSpecies=state.Switching||state.Stage==CultureStage.Inoculate?state.TargetSpecies:state.Species;
+            next.TargetTrait=CultureTrait.Base;next.Switching=true;next.KeepSample=false;
+            next.RecoveryEdible=state.Health>.1&&(state.Stage==CultureStage.Grow||state.Switching&&state.RecoveryEdible&&(state.Stage==CultureStage.SaveSample||state.Stage==CultureStage.Recover));
+            next.Stage=CultureStage.Recover;next.Seconds=0;return next;
+        }
+
         public static bool CanSample(CultureState state,CultureTrait trait)
         {
             if(state.Stage!=CultureStage.Grow || state.Health<.5 || state.LiveKg<Reserve(state.Policy)+SeedKg)return false;
             if(trait==state.Trait || trait==CultureTrait.Base)return true;
-            double exposure=trait==CultureTrait.Heat?state.HeatExposure:trait==CultureTrait.Dim?state.DimExposure:trait==CultureTrait.Fast?state.FastExposure:state.NutritionExposure;
-            return exposure>=1800;
+            return Exposure(state,trait)>=1800;
         }
+        public static double Exposure(CultureState state,CultureTrait trait)=>trait==CultureTrait.Heat?state.HeatExposure:trait==CultureTrait.Dim?state.DimExposure:trait==CultureTrait.Fast?state.FastExposure:state.NutritionExposure;
         public static CultureDelta SampleCulture(CultureState state,CultureTrait trait,double room)
         {
             var d=new CultureDelta{Next=state.Copy(),SampleSpecies=state.Species,SampleTrait=trait};
@@ -246,12 +281,13 @@ namespace Baiye.EcologyCulture
         // Biological stress is observed once per simulation step, not once per
         // readiness probe or native power callback. It changes health only;
         // dead mass remains in the sealed vessel until paid recovery.
-        public static CultureState Observe(CultureState state, CultureInput input, double seconds, bool operational)
+        public static CultureState Observe(CultureState state, CultureInput input, double seconds, bool operational,bool maintaining=false)
         {
-            var next=state.Copy();if(seconds<=0||state.Stage!=CultureStage.Grow)return next;
-            bool water=input.Water+input.SaltWater*.93>.001;
-            bool healthy=operational&&water&&input.Organic>.001&&input.TemperatureC>=MinTemperature(state.Species)&&input.TemperatureC<=MaxTemperature(state.Species,state.Trait);
-            next.Health=Math.Max(0,Math.Min(1,state.Health+(healthy?seconds/600:-seconds/2400)));
+            var next=state.Copy();if(seconds<=0||state.Stage!=CultureStage.Grow||state.Health<=.1)return next;
+            var condition=MaintenanceCondition(state,input);
+            bool healthy=operational&&condition==CultureBlock.None;
+            if(!healthy)next.LastStress=condition==CultureBlock.None?CultureBlock.Power:condition;
+            next.Health=Math.Max(0,Math.Min(1,state.Health+(healthy?(maintaining?0:seconds/600):-seconds/2400)));
             return next;
         }
     }

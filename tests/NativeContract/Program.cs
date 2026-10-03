@@ -38,18 +38,24 @@ static class Program
     static void Run()
     {
         Test("production process participates in native save system",()=>Check(typeof(ISaveLoadable).IsAssignableFrom(typeof(CultureProcess)),"process omitted ISaveLoadable"));
-        Test("culture controls implement native Config section with two direct choice rows",()=>
+        Test("culture settings use a dedicated native screen and remove old repeated controls",()=>
         {
-            Check(typeof(ISidescreenButtonControl).IsAssignableFrom(typeof(CultureSettingButton)),"native button adapter missing");
-            Check(CultureSettingButton.Count==12,"missing setting choices");
-            var button=(CultureSettingButton)RuntimeHelpers.GetUninitializedObject(typeof(CultureSettingButton));
-            for(int n=0;n<CultureSettingButton.Count;n++)
-            {
-                button.Choice=n;
-                Check(button.HorizontalGroupID()==(n<3?0:n<6?1:-1),"direct choice grouping incorrect");
-                Check(button.ButtonSideScreenSortOrder()==90,"culture section not prioritized");
-            }
+            Check(typeof(SideScreenContent).IsAssignableFrom(typeof(CultureSettingsSideScreen)),"native settings screen missing");
+            Check(!typeof(ISidescreenButtonControl).IsAssignableFrom(typeof(CultureSettingButton)),"old twelve buttons still exposed");
+            Check(CultureSettingsSideScreen.MainSelectorCount==3,"main controls not compact");
             Check(typeof(CultureSettingButton).GetField("Choice").GetCustomAttribute<UnityEngine.SerializeField>()!=null,"choice lost during prefab clone");
+        });
+        Test("native settings registration retains existing panels and uses one scene instance",()=>
+        {
+            var register=typeof(CultureMod).Assembly.GetType("Baiye.EcologyCulture.CultureSettingsRegistration").GetMethod("AddScreenReference",BindingFlags.NonPublic|BindingFlags.Static);
+            Check(register!=null,"scene-owned native settings registration missing");
+            var native=new DetailsScreen.SideScreenRef{name="Existing native panel"};
+            var refs=new System.Collections.Generic.List<DetailsScreen.SideScreenRef>{native};
+            var screen=(CultureSettingsSideScreen)RuntimeHelpers.GetUninitializedObject(typeof(CultureSettingsSideScreen));
+            Check((bool)register.Invoke(null,new object[]{refs,screen}),"new screen not registered");
+            Check(refs.Count==2&&ReferenceEquals(refs[0],native),"native screens changed or removed");
+            Check(ReferenceEquals(refs[1].screenPrefab,screen)&&ReferenceEquals(refs[1].screenInstance,screen)&&refs[1].tab==DetailsScreen.SidescreenTabTypes.Config,"native host would clone an uninitialized global prefab");
+            Check(!(bool)register.Invoke(null,new object[]{refs,screen})&&refs.Count==2,"repeated registration duplicates native content");
         });
         Test("all nine storage identities retain order and designed vessel sizes",()=>
         {
@@ -59,10 +65,16 @@ static class Program
         });
         Test("real native serialization preserves nested culture and sampling state",()=>
         {
-            var e=new Envelope{State=new CultureState{Species=CultureSpecies.Saline,Trait=CultureTrait.Heat,TargetSpecies=CultureSpecies.Spirulina,TargetTrait=CultureTrait.Fast,Stage=CultureStage.Clean,Switching=true,KeepSample=true,RecoveryEdible=false,Health=.73,LiveKg=9.4,Seconds=13.2,HeatExposure=1820,NutritionExposure=40},Requested=true,SamplingRemaining=12.5f};
+            var e=new Envelope{State=new CultureState{Species=CultureSpecies.Saline,Trait=CultureTrait.Heat,TargetSpecies=CultureSpecies.Spirulina,TargetTrait=CultureTrait.Fast,Stage=CultureStage.Clean,Switching=true,KeepSample=true,RecoveryEdible=false,LastStress=CultureBlock.Nutrient,Health=.73,LiveKg=9.4,Seconds=13.2,HeatExposure=1820,NutritionExposure=40},Requested=true,SamplingRemaining=12.5f};
             var r=RoundTrip(e);Check(r.State!=null&&r.State.Stage==CultureStage.Clean&&r.State.Switching&&r.State.KeepSample&&!r.State.RecoveryEdible,"switch fields lost");
             Check(r.State.Species==CultureSpecies.Saline&&r.State.Trait==CultureTrait.Heat&&r.State.TargetTrait==CultureTrait.Fast,"genotype lost");
             Check(r.State.LiveKg==9.4&&r.State.Seconds==13.2&&r.State.Health==.73&&r.State.HeatExposure==1820&&r.Requested&&r.SamplingRemaining==12.5f,"progress lost");
+            Check(r.State.LastStress==CultureBlock.Nutrient,"historical stress lost");
+        });
+        Test("native inventory accepts the sample classification and output state is saveable",()=>
+        {
+            Check(DiscoveredResources.GetCategoryForTags(new System.Collections.Generic.HashSet<Tag>{GameTags.MiscPickupable}).IsValid,"sample category not discoverable");
+            Check(typeof(ISaveLoadable).IsAssignableFrom(typeof(CultureOutput)),"pending blocked output not saveable");
         });
         Test("unique sample prefab IDs distinguish all fifteen genotypes",()=>
         {

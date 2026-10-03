@@ -1,5 +1,35 @@
 # 版本记录
 
+## 0.1.5 — 2026-10-02（本地开发版）
+
+- `src/CultureSettingsSideScreen.cs`：删除 `CultureLayoutTrace` 及其全局 `DetailsScreen.Refresh` 补丁。实机 22:56:55 日志明确记录该补丁在尚未显示的 `DetailsScreen` 上启动协程，产生 `Coroutine couldn't be started ... DetailsScreen is inactive`。诊断本身会引发游戏错误，0.1.4 的“只读诊断”说明不准确。
+- `src/CultureSettingsSideScreen.cs`：创建按钮时包含隐藏子对象，缓存每个按钮自己的根对象、文字和提示控件；刷新时直接使用绑定，不再隐藏按钮后查找文字，也不再向上查找待隐藏的布局对象。下拉框共享对应的稳定文字绑定，覆盖回退按钮消失、高级设置折叠及原生面板尚未显示的情况。
+- `src/CultureSettingsSideScreen.cs`：诊断改为培养设置自身的目标与操作前后同步日志，记录阶段、换种及菜单可见状态；不启动协程，不修改全局配置面板。`mod_info.yaml`、`README.md` 更新为 0.1.5 与旧版故障说明。
+- 原因边界：22:51:53 同进程重读档另有 `NavGrid` 飞行寻路初始化 `OutOfMemoryException`；未进入培养设置初始化，不能据此判定菜单故障原因。22:56 完整重启后的诊断协程错误已确认；此前“查找父对象误隐藏全局面板”的推测被原生按钮层级和 Unity API 行为否定。缓存控件是针对已发现的不安全访问的修正，尚不能证明此前菜单消失只有这一原因。
+- 已检查：Release 构建 0 错误、2 个既有程序集警告；50 项模型回归、8 项原生托管契约、4 项数据库回归，共 62 项通过；git diff --check 通过。源码复核已无全局 Refresh 补丁、诊断协程、按钮父布局查找或忽略隐藏对象的文字查找。
+- 安装：用户关闭游戏后安装 0.1.5，35 个文件逐项 SHA-256 校验一致；0.1.4 备份为 `dist/install-backups/BaiyeEcologyCulture-20261002-230228`。游戏报错后生态模组的 DLC 启用列表已清空，备份 `D:/Documents/Klei/OxygenNotIncluded/mods/mods.json` 为 `dist/install-backups/mods-before-0.1.5-20261002-2302.json`，仅恢复生态模组的 `EXPANSION1_ID` 启用项，逐项验证其余模组配置不变。
+- 未验证：Unity 实际清洗回退、面板再次选择和普通建筑配置仍需重启复核；托管测试不实例化真实 UI，也不能证明菜单故障全部消除。
+
+## 0.1.4 — 2026-10-02（本地开发版）
+
+- `src/CultureSettingsSideScreen.cs`：修正临时侧栏对象挂在全局 DetailsScreen 布局下的问题；改为配置内容区的单一场景实例，保留所有原有 SideScreenRef，重复注册不增加条目。培养设置有原生布局宽度、动态高度、顶部锚点及独立滚动区域，高级设置不撑出屏幕；说明文字随换行高度扩展。去掉字体缺失的展开箭头字符，弹出菜单统一 UI 层。
+- `src/CultureSettingsSideScreen.cs`：增加有限次数的只读布局诊断，首次选择前八种建筑时在布局完成后记录配置面板尺寸/屏幕范围，不修改普通建筑的面板；用于储物箱、电池等全局菜单的实机复核。
+- `src/CultureModel.cs`、`CultureProcess.cs`：特殊株接种或换种期间可“回收清洗并退回基础株”，重新使用真实回收/30 秒清洗/付费接种流程。保留目标藻类、实际母株身份及已配送样本；未完成接种的母株回收为残渣，正常已成熟旧株仍按原回收账目处理，不凭空生成或重命名物料。
+- `src/CultureItems.cs`、`CultureProcess.cs`、`CultureSettingsSideScreen.cs`、`CultureCodex.cs`、`README.md`：显示特殊株真实样本需求 50 g、实际库存及获取条件。高营养样本需同种培养物在有机营养料至少 10 kg 时累计 1800 秒付费生长，再由复制人采样取得；采收/维护/停机不计经历。样本不会天然生成；接种性状和采样目标仍分离。`mod_info.yaml` 更新为 0.1.4。
+- `tests/Regression/Program.cs`、`tests/NativeContract/Program.cs`：增加特殊株等待退出、部分母株回收/原种类产物、真实高营养样本取得与一次接种、场景侧栏注册保留原有条目及幂等检查。
+- 已检查：50 项模型回归、8 项原生契约、4 项原生数据库，共 62 项通过；新增等待退出与场景注册检查先失败后通过。Release 构建 0 错误、2 个既有游戏程序集警告，git diff --check 通过；动画资源未修改。0.1.4 安装包含 35 文件、30 个既有动画文件，仅一个模组自己的 DLL。
+- 未验证：Unity 实际滚动/下拉操作、普通建筑配置菜单屏幕位置、旧存档及多模组实机恢复；托管测试不实例化 Unity UI。此前只检查托管类型与注册存在，不能代表真实布局正确。本版增加原生挂载/保留条目检查和实机布局日志，仍需重启验证。
+
+## 0.1.3 — 2026-10-02（本地开发版）
+
+- `src/CultureOutput.cs`、`CultureOutputPolicy.cs`、`CultureConfig.cs`：4 kg 实际生物量采收后整批排出；非采收盐/残渣约 5 kg 一批，阶段结束排余量，生成样本排出。仅原生移出第 4/7 号产物/样本仓，保留物品质量、温度及病菌；出料格实心则保留库存和请求，首次升级排旧积压。母株和输入仓不会被排出。
+- `src/CultureModel.cs`、`CultureProcess.cs`、`CultureActivity.cs`、`CultureVisuals.cs`：堵仓转入实际付费 120 W 维护，维持原健康，不增长或产氧；恢复空间后继续。缺料/缺水/温度/付款不满足则不能维护；已失活不自动复活。新存档记录损伤原因，旧未知原因如实显示未知；缓速维护使用已有保种动画。
+- `src/CultureSettingsSideScreen.cs`、`CultureSettingButton.cs`、`CultureProcess.cs`、`CultureSampling.cs`：替换十二按钮为独立配置侧栏，三原生下拉选择与默认折叠高级设置；接种性状、采样目标分别保存，失活一键基础株重接种，明确无法采样原因并支持取消。实际采样提交失败时保留请求重试。
+- `src/CultureProcess.cs`：异常使用世界图标与处理指引，健康下降/失活分级通知，每个受损阶段一次，恢复后重置；默认三组状态。运行时恢复未被 Unity 序列化的 allowUIItemRemoval 属性，避免只在预制体设置导致实例库存不能手工取出。`CultureItems.cs` 为样本/活体补原生可发现分类。
+- `EcologyCulture.csproj` 增加游戏原生 UI/TMP 引用（不复制到安装包），排除测试/发布目录默认候选文件；`tests/Regression/`、`tests/NativeContract/` 增补堵仓维护、恢复、失活重接种、批量频率、状态分类/保存检查。更新 `README.md`、`CultureCodex.cs`、`CultureMod.cs`、`mod_info.yaml` 的操作与版本说明。
+- 已检查：最终 48 项模型回归、7 项原生托管检查、4 项原生数据库回归，共 59 项通过；首次新增堵仓测试在旧逻辑下失败，修复后通过。Release 编译 0 错误、2 个既有程序集版本警告；0.1.3 ZIP 共 35 文件、30 个原有动画文件，仅包含模组自己的 DLL。动画资源本次未修改。操作文字使用 CO2/O2，避免游戏字体缺少下标字符。
+- 未验证：Unity 侧栏布局/弹窗交互、实际地面出料/搬运/清扫器、完整旧存档、多模组及长期实机运行。原生托管检查不实例化 Unity 游戏。
+
 ## 0.1.2 — 2026-10-02
 
 首次公开发布：独立生态培养模组，支持《眼冒金星》，编译验证 U59-744825-SCRPAD。

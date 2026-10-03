@@ -28,7 +28,7 @@ namespace Baiye.EcologyCulture
             anim.SetSymbolTint(new KAnimHashedString("warning"),(Color32)(process.State.Health>=.8?Color.white:process.State.Health>.1?new Color(1,.66f,.18f):new Color(1,.3f,.1f)));
             float now=GameClock.Instance.GetTime();
             bool running=process.Activity.Running(now,process.Operational);
-            string loop=CultureActivity.Loop(process.State);
+            string loop=CultureActivity.Loop(process.State,process.Activity.Maintaining);
             bool harvested=seenHarvest!=process.Activity.HarvestSequence;
             seenHarvest=process.Activity.HarvestSequence;
             if(running&&harvested){anim.Play("harvesting",KAnim.PlayMode.Once);anim.Queue(loop,KAnim.PlayMode.Loop);}

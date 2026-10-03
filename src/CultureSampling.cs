@@ -9,6 +9,7 @@ namespace Baiye.EcologyCulture
         [Serialize] private CultureTrait trait;
         [Serialize] private float remaining=30;
         private Chore chore;
+        public CultureTrait RequestedTrait=>trait;
         protected override void OnPrefabInit()
         {
             base.OnPrefabInit();SetWorkTime(30);synchronizeAnims=false;
@@ -17,7 +18,7 @@ namespace Baiye.EcologyCulture
             faceTargetWhenWorking=true;SetOffsets(new[]{new CellOffset(-2,0),new CellOffset(3,0)});
             attributeConverterId=Db.Get().AttributeConverters.ResearchSpeed.Id;
         }
-        public void Request(CultureTrait t){if(Requested)return;trait=t;Requested=true;SetWorkTime(30);}
+        public void Request(CultureTrait t){if(Requested)return;trait=t;Requested=true;remaining=30;SetWorkTime(30);}
         protected override void OnSpawn(){base.OnSpawn();SetWorkTime(Requested?System.Math.Max(.01f,remaining):30);}
         protected override bool OnWorkTick(WorkerBase worker,float dt){remaining=System.Math.Max(0,WorkTimeRemaining);return base.OnWorkTick(worker,dt);}
         public void Sim200ms(float dt)
@@ -28,7 +29,7 @@ namespace Baiye.EcologyCulture
         }
         protected override void OnCompleteWork(WorkerBase worker)
         {
-            base.OnCompleteWork(worker);GetComponent<CultureProcess>().FinishSample(trait);Requested=false;chore=null;remaining=30;SetWorkTime(30);
+            base.OnCompleteWork(worker);bool success=GetComponent<CultureProcess>().FinishSample(trait);Requested=!success;chore=null;remaining=success?30:1;SetWorkTime(remaining);
         }
         private void CancelChore(){chore?.Cancel("Culture sampling paused");chore=null;}
         public void Cancel(){Requested=false;CancelChore();remaining=30;SetWorkTime(30);}

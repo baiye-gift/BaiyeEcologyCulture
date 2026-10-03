@@ -10,6 +10,14 @@ static class Program
     static void Test(string name,Action test){test();passed++;Console.WriteLine("PASS "+name);}
     static void Main()
     {
+        Test("full harvest buffer preserves colony through paid low-power maintenance",()=>
+        {
+            var s=new CultureState{Stage=CultureStage.Grow,LiveKg=12,Policy=CulturePolicy.Food};
+            var i=Supplies();i.ProductRoom=1.9327;i.CO2=0;i.MaxWatts=120;
+            var d=CultureModel.Step(s,i,.2,true);
+            Check(d.Worked&&d.Block==CultureBlock.ProductFull&&d.Watts==120,"blocked culture has no paid maintenance");
+            Near(d.Inputs,0);Near(d.Outputs,0);Near(d.Next.LiveKg,12);
+        });
         Test("organic medium sustains paid growth without carbon dioxide or net oxygen",()=>
         {
             var s=new CultureState{Stage=CultureStage.Grow,LiveKg=10,Policy=CulturePolicy.Food};
@@ -110,7 +118,7 @@ static class Program
         Test("input and output interruptions cause no partial resource withdrawal",()=>
         {
             for(int x=0;x<4;x++)
-            {var s=new CultureState{Stage=CultureStage.Grow,LiveKg=10,Policy=CulturePolicy.Food};var i=Supplies();switch(x){case 0:i.Water=i.SaltWater=0;break;case 1:i.Organic=0;break;case 2:i.ProductRoom=0;break;case 3:i.TemperatureC=90;break;}var d=CultureModel.Step(s,i,.2,true);Near(d.Inputs,0);Near(d.Outputs,0);Near(d.Next.LiveKg,10);Check(!d.Worked,"interrupted partial production");}
+            {var s=new CultureState{Stage=CultureStage.Grow,LiveKg=10,Policy=CulturePolicy.Food};var i=Supplies();switch(x){case 0:i.Water=i.SaltWater=0;break;case 1:i.Organic=0;break;case 2:i.ProductRoom=0;break;case 3:i.TemperatureC=90;break;}var d=CultureModel.Step(s,i,.2,true);Near(d.Inputs,0);Near(d.Outputs,0);Near(d.Next.LiveKg,10);Check(x==2?d.Worked&&d.Maintaining:!d.Worked,"interrupted partial production or missing maintenance");}
         });
         Test("health observations do not create or delete dead material",()=>
         {
@@ -266,6 +274,81 @@ static class Program
             s.Stage=CultureStage.Inoculate;Check(CultureActivity.Loop(s)=="inoculating_loop","inoculation animation");
             s.Stage=CultureStage.Recover;Check(CultureActivity.Loop(s)=="recovery_loop","recovery animation");
             s.Stage=CultureStage.Grow;s.Policy=CulturePolicy.Food;Check(CultureActivity.Loop(s)=="working_loop","normal culture animation");
+        });
+        Test("blocked buffer stays healthy for ten cycles and harvest resumes after removal",()=>
+        {
+            var s=new CultureState{Stage=CultureStage.Grow,LiveKg=12,Policy=CulturePolicy.Food,Health=.7};var i=Supplies();i.ProductRoom=1.9327;i.MaxWatts=120;
+            for(int n=0;n<30000;n++){var d=CultureModel.Step(s,i,.2,true);Check(d.Worked&&d.Maintaining,"maintenance interrupted");Near(d.Inputs,0);Near(d.Outputs,0);s=CultureModel.Observe(d.Next,i,.2,true,d.Maintaining);}
+            Near(s.Health,.7);Near(s.LiveKg,12);i.ProductRoom=50;i.MaxWatts=600;var resumed=CultureModel.Step(s,i,.2,true);
+            Check(resumed.Worked&&!resumed.Maintaining&&resumed.LiveTaken==4,"harvest did not resume");Near(resumed.Inputs,resumed.Outputs);
+        });
+        Test("maintenance requires payment water medium and valid temperature",()=>
+        {
+            var s=new CultureState{Stage=CultureStage.Grow,LiveKg=12,Policy=CulturePolicy.Food};
+            for(int n=0;n<5;n++){var i=Supplies();i.ProductRoom=0;switch(n){case 0:i.MaxWatts=119;break;case 1:i.Water=i.SaltWater=0;break;case 2:i.Organic=0;break;case 3:i.TemperatureC=90;break;}
+                var d=CultureModel.Step(s,i,.2,n!=4);Check(!d.Worked&&!d.Maintaining,"free maintenance");Near(d.Inputs,0);Near(d.Outputs,0);Check(CultureModel.Observe(s,i,1,false).Health<s.Health,"missing biological stress");}
+        });
+        Test("dead culture cannot spontaneously heal and remembers stress across recovery",()=>
+        {
+            var s=new CultureState{Stage=CultureStage.Grow,LiveKg=12};var i=Supplies();i.Organic=0;s=CultureModel.Observe(s,i,2161,false);
+            Check(s.Health<=.1&&s.LastStress==CultureBlock.Nutrient,"stress cause missing");Near(CultureModel.Observe(s,Supplies(),1000,true).Health,s.Health);
+            s=CultureModel.RequestSwitch(s,s.Species,CultureTrait.Base,false);double total=0;var restart=Supplies();restart.SaltWater=0;
+            for(int n=0;n<900&&s.Stage!=CultureStage.Grow;n++){var d=CultureModel.Step(s,restart,.2,true);Check(d.Worked,"restart stalled");Near(d.Inputs,d.Outputs);total+=d.Residue;s=d.Next;}
+            Check(s.Stage==CultureStage.Grow&&!s.Switching&&s.Health==1,"base restart failed");Near(total,12);
+        });
+        Test("tiny byproducts stay buffered while harvest and completed stages flush once",()=>
+        {
+            Check(!CultureOutputPolicy.ProductsDue(.0673,false),"tiny byproducts ejected every tick");
+            Check(CultureOutputPolicy.ProductsDue(5,false)&&CultureOutputPolicy.ProductsDue(48,false)&&CultureOutputPolicy.ProductsDue(.0673,true),"batch or explicit ejection missing");
+            Check(!CultureOutputPolicy.ProductsDue(0,true)&&CultureOutputPolicy.SamplesDue(.05),"empty buffer or real sample handled incorrectly");
+            var harvest=new CultureDelta{Worked=true,LiveTaken=4,Next=new CultureState{Stage=CultureStage.Grow}};
+            Check(CultureOutputPolicy.FlushAfter(CultureStage.Grow,harvest),"harvest not ejected");
+            harvest.LiveTaken=.05;Check(!CultureOutputPolicy.FlushAfter(CultureStage.Grow,harvest),"sampling flushed tiny byproducts");
+            harvest.Next.Stage=CultureStage.Clean;Check(CultureOutputPolicy.FlushAfter(CultureStage.Drain,harvest),"filter remnants trapped");
+            harvest.Next.Stage=CultureStage.Inoculate;Check(CultureOutputPolicy.FlushAfter(CultureStage.Clean,harvest),"cleaning remnants trapped");
+        });
+        Test("maintenance is paid but never reported as growth or photosynthetic activity",()=>
+        {
+            var s=new CultureState{Stage=CultureStage.Grow,LiveKg=12,Policy=CulturePolicy.Food};var i=Supplies();i.ProductRoom=0;
+            var d=CultureModel.Step(s,i,.2,true);var a=new CultureActivity();a.Committed(s.Stage,d,10);
+            Check(a.Mode(d.Next,10.2,true,false)==CultureMode.BufferMaintenance&&CultureActivity.Loop(s,a.Maintaining)=="preserving_loop","maintenance reported as productive growth");Near(a.HarvestSequence,0);Near(d.PhotoGain,0);
+        });
+        Test("full preservation culture reports missing maintenance reagents",()=>
+        {
+            var s=new CultureState{Stage=CultureStage.Grow,Policy=CulturePolicy.Preserve,LiveKg=16};var i=Supplies();i.Organic=0;
+            var d=CultureModel.Step(s,i,.2,true);Check(!d.Worked&&d.Block==CultureBlock.Nutrient,"preservation hides missing medium");
+            i=Supplies();i.Water=i.SaltWater=0;d=CultureModel.Step(s,i,.2,true);Check(!d.Worked&&d.Block==CultureBlock.Water,"preservation hides missing water");
+        });
+        Test("blocked advanced inoculation can explicitly restart base without renaming stored biomass",()=>
+        {
+            var reset=typeof(CultureModel).GetMethod("RequestBaseRestart");
+            Check(reset!=null,"no escape from a pending advanced inoculation");
+            var old=new CultureState{Species=CultureSpecies.Green,Trait=CultureTrait.Nutritious,TargetSpecies=CultureSpecies.Green,TargetTrait=CultureTrait.Nutritious,Stage=CultureStage.Inoculate,Switching=true,LiveKg=.02,Health=.7,Seconds=90,Policy=CulturePolicy.Food};
+            var next=(CultureState)reset.Invoke(null,new object[]{old});
+            Check(next.Stage==CultureStage.Recover&&next.Switching&&!next.KeepSample&&!next.RecoveryEdible,"incomplete biomass did not enter paid residue recovery");
+            Check(next.Trait==old.Trait&&next.TargetTrait==CultureTrait.Base&&next.TargetSpecies==old.TargetSpecies,"existing genotype renamed or pending species lost");
+            Near(next.LiveKg,old.LiveKg);Near(next.Health,old.Health);Near(old.Seconds,90);Near(next.Seconds,0);
+            var i=Supplies();i.SaltWater=i.CO2=0;i.ImportSample=0;double residue=0;
+            var unpaid=CultureModel.Step(next,i,.2,false);Check(!unpaid.Worked,"restart progressed for free");Near(unpaid.Next.LiveKg,.02);
+            for(int n=0;n<1000&&next.Stage!=CultureStage.Grow;n++) {var d=CultureModel.Step(next,i,.2,true);Check(d.Worked,"base recovery still needs unavailable sample");Near(d.Inputs,d.Outputs);residue+=d.Residue;next=d.Next;}
+            Check(next.Stage==CultureStage.Grow&&!next.Switching&&next.Trait==CultureTrait.Base&&next.Health==1,"base restart incomplete");Near(residue,.02);Near(next.LiveKg,2);
+            var pending=old.Copy();pending.Trait=CultureTrait.Base;pending.TargetSpecies=CultureSpecies.Saline;pending.Stage=CultureStage.SaveSample;pending.RecoveryEdible=true;pending.LiveKg=7;
+            next=(CultureState)reset.Invoke(null,new object[]{pending});
+            Check(next.Species==CultureSpecies.Green&&next.TargetSpecies==CultureSpecies.Saline&&next.TargetTrait==CultureTrait.Base&&next.RecoveryEdible,"pending species or legitimate old harvest lost");
+            var recovered=CultureModel.Step(next,i,.2,true);Check(recovered.ProductSpecies==CultureSpecies.Green&&recovered.Product>0,"old culture transformed into target food");Near(recovered.Inputs,recovered.Outputs);
+        });
+        Test("nutritious sample comes from paid cultivation and transfers once to advanced inoculation",()=>
+        {
+            var s=new CultureState{Stage=CultureStage.Grow,LiveKg=10,Policy=CulturePolicy.Food};var i=Supplies();i.CO2=i.SaltWater=0;i.Organic=10;
+            for(int n=0;n<10000&&!CultureModel.CanSample(s,CultureTrait.Nutritious);n++){var d=CultureModel.Step(s,i,.2,true);Check(d.Worked,"source culture stalled");s=d.Next;}
+            Check(CultureModel.CanSample(s,CultureTrait.Nutritious),"actual cultivation never unlocks nutrition sampling");
+            var sampled=CultureModel.SampleCulture(s,CultureTrait.Nutritious,.5);Check(sampled.Worked&&sampled.SampleTrait==CultureTrait.Nutritious,"wrong sample genotype");Near(sampled.SampleMade,.05);Near(sampled.LiveTaken,.05);Near(sampled.Inputs,sampled.Outputs);
+            var seed=new CultureState{Stage=CultureStage.Inoculate,TargetTrait=CultureTrait.Nutritious,Trait=CultureTrait.Nutritious,Switching=true};i.ImportSample=sampled.SampleMade;
+            var first=CultureModel.Step(seed,i,.2,true);Near(first.SampleTaken,.05);Near(first.LiveAdded,.05);Near(first.Inputs,first.Outputs);
+            i.ImportSample=0;var second=CultureModel.Step(first.Next,i,.2,true);Check(second.Worked,"delivered inoculum still stalls");Near(second.SampleTaken,0);
+            s=new CultureState{Stage=CultureStage.Grow,LiveKg=10,Policy=CulturePolicy.Food};i.Organic=9.9;
+            var low=CultureModel.Step(s,i,1,true);Near(low.Next.NutritionExposure,0);i.Organic=10;
+            var free=CultureModel.Step(s,i,1800,false);Near(free.Next.NutritionExposure,0);
         });
         Console.WriteLine($"{passed} culture regression scenarios passed");
     }

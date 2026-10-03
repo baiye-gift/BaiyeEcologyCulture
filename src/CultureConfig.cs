@@ -43,8 +43,7 @@ namespace Baiye.EcologyCulture
             Deliver(go,import,new Tag(CultureIds.Sample(CultureSpecies.Green,CultureTrait.Base)),.05f,.05f);
             // Keep all nine storage positions and the old endpoint component for
             // save compatibility. It now has no secondary ports to register.
-            go.AddOrGet<CultureSecondaryEndpoints>();go.AddOrGet<CultureProcess>();go.AddOrGet<CultureSampling>();go.AddOrGet<CultureVisuals>();
-            for(int n=0;n<CultureSettingButton.Count;n++)go.AddComponent<CultureSettingButton>().Choice=n;
+            go.AddOrGet<CultureSecondaryEndpoints>();go.AddOrGet<CultureOutput>();go.AddOrGet<CultureProcess>();go.AddOrGet<CultureSampling>();go.AddOrGet<CultureVisuals>();go.AddOrGet<Notifier>();
             Prioritizable.AddRef(go);
         }
         private static Storage Store(GameObject go,float kg,bool removable)
